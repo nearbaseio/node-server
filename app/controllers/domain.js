@@ -134,6 +134,7 @@ const withdrawDomain = async (req, res) => {
 
             const contract = new Contract(account, CONTRACT_NAME, {
                 viewMethods: ['get_domain_id'],
+                changeMethods: ['retired_domain'],
                 sender: account,
             })
 
@@ -145,29 +146,39 @@ const withdrawDomain = async (req, res) => {
             if (response[0]) {
                 let domain = response[0]
                 if (domain.owner_id === owner_id && domain.retired === false) {
-                    try {
-                        method = 'get'
-                        url = 'http://127.0.0.1:8000/api/v1/domain-credentials/?id_contract=' + id_domain
-                        await axios[method](url,
-                            {
-                                headers:
-                                {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': 'token ' + TOKEN_DJANGO,
-                                },
-                            }).then((response) => {
-                                if (response.data[0]) {
-                                    res.json(response.data[0])
-                                } else {
-                                    res.status(204).json()
-                                }  
-                            }).catch((error) => {
-                                console.log("ERROR")
+                    
+                    contract.retired_domain(
+                        {
+                            id: id_domain,
+                        })
+                        .then(async (response) => {
+                            try {
+                                method = 'post'
+                                url = 'http://127.0.0.1:8000/api/v1/withdraw-domain'
+                                let item = {
+                                    id_contract: id_domain
+                                }
+                                await axios[method](url, item,
+                                    {
+                                        headers:
+                                        {
+                                            'Content-Type': 'application/json',
+                                            'Authorization': 'token ' + TOKEN_DJANGO,
+                                        },
+                                    }).then((response) => {
+                                        console.log(response.data)
+                                        res.json(response.data)
+                                    }).catch((error) => {
+                                        console.log("ERROR")
+                                        res.status(404).json()
+                                    })
+                            } catch (error) {
                                 res.status(404).json()
-                            })
-                    } catch (error) {
-                        res.status(404).json()
-                    }
+                            }
+                        }).catch((error) => {
+                            console.log("ERROR")
+                            res.status(404).json()
+                        })
                 } else {
                     res.status(401).json()
                 }
