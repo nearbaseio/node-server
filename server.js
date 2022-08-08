@@ -1,4 +1,5 @@
 const express = require('express');
+const { dbConnect } = require('./config/postgres')
 const morgan = require('morgan');
 const app = express(),
       bodyParser = require("body-parser");
@@ -11,6 +12,8 @@ require('dotenv').config()
 app.use(cors({
   origin: '*'
 }));
+
+dbConnect()
 
 app.use(bodyParser.json());
 app.use(express.static(process.cwd() + '/my-app/dist'));

@@ -9,6 +9,8 @@ const SIGNER_ID = process.env.SIGNER_ID;
 const SIGNER_PRIVATEKEY = process.env.SIGNER_PRIVATEKEY;
 const NETWORK = process.env.NETWORK;
 const TOKEN_DJANGO = process.env.TOKEN_DJANGO
+const IP_DJANGO = process.env.IP_DJANGO
+
 
 const publishDomain = async (req, res) => {
     try {
@@ -78,11 +80,10 @@ const publishDomain = async (req, res) => {
                             date_day: String(date)
                         },
                     ).then( async (response) => {
-                        console.log(response)
                         newItem.id_contract = response.id
                         try {
                             method = 'post'
-                            url = 'http://127.0.0.1:8000/api/v1/domain-credentials/'
+                            url = IP_DJANGO + 'api/v1/domain-credentials/'
                             await axios[method](url, newItem,
                                 {
                                     headers:
@@ -91,11 +92,9 @@ const publishDomain = async (req, res) => {
                                         'Authorization': 'token ' + TOKEN_DJANGO,
                                     },
                                 }).then((response) => {
-                                    console.log("response")
                                     res.status(200).json()
                                 }).catch((error) => {
-                                    console.log("error")
-                                    console.log("ERROR")
+                                    console.log(error)
                                     res.status(404).json()
                                 })
                         } catch (error) {
@@ -142,11 +141,11 @@ const withdrawDomain = async (req, res) => {
                 {
                     id: id_domain,
                 })
-            
             if (response[0]) {
                 let domain = response[0]
+    
                 if (domain.owner_id === owner_id && domain.retired === false) {
-                    
+              
                     contract.retired_domain(
                         {
                             id: id_domain,
@@ -154,7 +153,7 @@ const withdrawDomain = async (req, res) => {
                         .then(async (response) => {
                             try {
                                 method = 'post'
-                                url = 'http://127.0.0.1:8000/api/v1/withdraw-domain'
+                                url = IP_DJANGO + 'api/v1/withdraw-domain/'
                                 let item = {
                                     id_contract: id_domain
                                 }
@@ -166,27 +165,25 @@ const withdrawDomain = async (req, res) => {
                                             'Authorization': 'token ' + TOKEN_DJANGO,
                                         },
                                     }).then((response) => {
-                                        console.log(response.data)
+                                    
                                         res.json(response.data)
                                     }).catch((error) => {
-                                        console.log("ERROR")
-                                        res.status(404).json()
+                                        res.status(500).json()
                                     })
                             } catch (error) {
                                 res.status(404).json()
                             }
                         }).catch((error) => {
-                            console.log("ERROR")
                             res.status(404).json()
                         })
                 } else {
-                    res.status(401).json()
+                    res.status(401).json({error: "aqui error"})
                 }
             } else {
-                res.status(204).json()
+                res.status(204).json({error: "aqui error2"})
             }
         } else {
-            res.status(401).json()
+            res.status(401).json({error: "aqui error3"})
         }
     } catch (error) {
         res.status(404).json()
@@ -244,16 +241,14 @@ async function validatePrivateKey(nearId, privateKey) {
         const keys = await account.getAccessKeys()
 
         for (var i = 0; i < keys.length; i++) {
-            //console.log(keys[i].access_key.permission.FunctionCall.receiver_id)
             if (keys[i].public_key === keyPair.getPublicKey().toString()) {
-                if (keys[i].access_key.permission) {
+                if (keys[i].access_key.permission.FunctionCall.receiver_id === CONTRACT_NAME) {
                     return true
                 }
             }
         } 
         return false
     } catch (error) {
-        console.log(error)
         return false
     }
 }
