@@ -62,22 +62,11 @@ const publishDomain = async (req, res) => {
                     sender: account
                 })
 
-                let date_ob = new Date();
-                let date = ("0" + date_ob.getDate()).slice(-2);
-                let month = ("0" + (date_ob.getMonth() + 1)).slice(-2);
-                let year = date_ob.getFullYear();
-
-                let dateFech = (year + "-" + month + "-" + date)
-
                 contract.publish_domain(
                         {
                             domain: newItem.domain,
                             user_seller: newItem.profile,
-                            price: utils.format.parseNearAmount(newItem.price),
-                            date_fech: String(dateFech),
-                            date_year: String(year),
-                            date_month: String(month),
-                            date_day: String(date)
+                            price: utils.format.parseNearAmount(newItem.price)
                         },
                     ).then( async (response) => {
                         newItem.id_contract = response.id
@@ -190,6 +179,80 @@ const withdrawDomain = async (req, res) => {
     }
 }
 
+const cancelDomain = async (req, res) => {
+    try {
+        const { owner_id, privateKey , id_domain} = req.body
+
+        const resp = await validatePrivateKey(owner_id, privateKey)
+      
+        if (resp === true) {
+            const keyStore = new keyStores.InMemoryKeyStore()
+
+            const keyPair = KeyPair.fromString(privateKey)
+            keyStore.setKey(NETWORK, owner_id, keyPair)
+
+            const near = new Near(CONFIG(keyStore))
+
+            const account = new Account(near.connection, owner_id)
+
+            const contract = new Contract(account, CONTRACT_NAME, {
+                viewMethods: ['get_domain_forsale'],
+                changeMethods: ['cancel_domain'],
+                sender: account,
+            })
+
+            const response = await contract.get_domain_forsale(
+                {
+                    id: id_domain,
+                })
+            if (response[0]) {
+                let domain = response[0]
+    
+                if (domain.user_seller === owner_id) {
+              
+                    contract.cancel_domain(
+                        {
+                            id: id_domain,
+                        })
+                        .then(async (response) => {
+                            try {
+                                method = 'post'
+                                url = IP_DJANGO + 'api/v1/withdraw-domain/'
+                                let item = {
+                                    id_contract: id_domain
+                                }
+                                await axios[method](url, item,
+                                    {
+                                        headers:
+                                        {
+                                            'Content-Type': 'application/json',
+                                            'Authorization': 'token ' + TOKEN_DJANGO,
+                                        },
+                                    }).then((response) => {
+                                        res.json(response.data)
+                                    }).catch((error) => {
+                                        res.status(404).json()
+                                    })
+                            } catch (error) {
+                                res.status(404).json()
+                            }
+                        }).catch((error) => {
+                            res.status(404).json()
+                        })
+                } else {
+                    res.status(401).json({error: "aqui error"})
+                }
+            } else {
+                res.status(204).json({error: "aqui error2"})
+            }
+        } else {
+            res.status(401).json({error: "aqui error3"})
+        }
+    } catch (error) {
+        res.status(404).json()
+    }
+}
+
 async function validateNearId(nearId) { 
     try {
         const keyStore = new keyStores.InMemoryKeyStore()
@@ -253,4 +316,4 @@ async function validatePrivateKey(nearId, privateKey) {
     }
 }
 
-module.exports = { publishDomain, withdrawDomain }
+module.exports = { publishDomain, withdrawDomain,cancelDomain }
